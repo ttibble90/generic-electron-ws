@@ -1,16 +1,28 @@
 // Modules to control application life and create native browser window
-const {app, BrowserWindow} = require('electron')
+const {app, BrowserWindow} = require('electron');
+const express = require('express');
+const server = express();
+const WebSocketServer = require('ws').Server;
+
+
+let wss;
+let connectionCount = 0;
+
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
-let mainWindow
+let mainWindow;
 
 function createWindow () {
+    // Initialize Express Server & web socket
+    initWebsocket();
+    initServer();
+
   // Create the browser window.
-  mainWindow = new BrowserWindow({width: 800, height: 600})
+  mainWindow = new BrowserWindow({width: 800, height: 600});
 
   // and load the index.html of the app.
-  mainWindow.loadFile('index.html')
+  mainWindow.loadFile('index.html');
 
   // Open the DevTools.
   // mainWindow.webContents.openDevTools()
@@ -27,7 +39,7 @@ function createWindow () {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow)
+app.on('ready', createWindow);
 
 // Quit when all windows are closed.
 app.on('window-all-closed', function () {
@@ -36,7 +48,7 @@ app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') {
     app.quit()
   }
-})
+});
 
 app.on('activate', function () {
   // On OS X it's common to re-create a window in the app when the
@@ -44,7 +56,66 @@ app.on('activate', function () {
   if (mainWindow === null) {
     createWindow()
   }
-})
+});
 
+
+function initWebsocket(){
+    wss = new WebSocketServer({port: 40510});
+    wss.on('connection', function (ws) {
+        connectionCount ++;
+        console.log('New Connection! count: ' + connectionCount);
+        mainWindow.webContents.send('connectionCount', connectionCount);
+
+        startWebsocketHeartbeat();
+
+        //Received Messages
+        ws.on('message', function (message) {
+            console.log('received: %s', message)
+        });
+
+
+
+        ws.on('close', function close() {
+            console.log('disconnected');
+            mainWindow.webContents.send('connectionCount', connectionCount);
+
+            connectionCount --;
+            if (connectionCount < 0){
+                console.log("we have negative connections.... this is weird...");
+                connectionCount = 0;
+            }
+        });
+
+    });
+
+
+
+}
+
+function initServer() {
+  //  server.get('/', (req, res) => res.send('connected to server!'));
+    server.get('/', function (req, res) {
+        res.sendfile('./client/index.html');
+    });
+
+    server.listen(2727, () => console.log('Example app listening on port 2727!'));
+
+}
+
+function startWebsocketHeartbeat() {
+    setInterval(
+        /*todo - this should be set up as an observer model, and the websocket heartbeat and the electron renderer
+         should subscribe to the periodically emitted event.
+          */
+        () => {
+            try {
+                ws.send('' + new Date());
+            }
+            catch (e) {
+                console.log('unable to send message... here is the error:' );
+                console.log(e);
+            }
+        }, 1000);
+}
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.

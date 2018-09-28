@@ -13,6 +13,17 @@ let connectionCount = 0;
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
 
+class Clients {
+    constructor(){
+        this.clientList = {};
+        this.saveClient = this.saveClient.bind(this);
+    }
+    saveClient(username, client) {
+        this.clientList[username]= client;
+    }
+}
+
+const clients = new Clients();
 function createWindow () {
     // Initialize Express Server & web socket
     initWebsocket();
@@ -61,7 +72,7 @@ app.on('activate', function () {
 
 function initWebsocket(){
     wss = new WebSocketServer({port: 40510});
-    wss.on('connection', function (ws) {
+    wss.on('connection', function (client) {
         connectionCount ++;
         console.log('New Connection! count: ' + connectionCount);
         mainWindow.webContents.send('connectionCount', connectionCount);
@@ -69,8 +80,12 @@ function initWebsocket(){
         startWebsocketHeartbeat();
 
         //Received Messages
-        ws.on('message', function (message) {
-            console.log('received: %s', message)
+        client.on('message', function (message) {
+            console.log('received: %s', message);
+            const parsedMsg = JSON.parse(message);
+            if(parsedMsg.type === 'userRegister'){
+                clients.saveClient(parsedMsg.username, client);
+            }
         });
 
 
@@ -117,5 +132,6 @@ function startWebsocketHeartbeat() {
             }
         }, 1000);
 }
+
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.

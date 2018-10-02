@@ -72,19 +72,19 @@ app.on('activate', function () {
 
 function initWebsocket(){
     wss = new WebSocketServer({port: 40510});
-    wss.on('connection', function (client) {
+    wss.on('connection', function (ws) {
         connectionCount ++;
         console.log('New Connection! count: ' + connectionCount);
         mainWindow.webContents.send('connectionCount', connectionCount);
 
-        startWebsocketHeartbeat();
+        startWebsocketHeartbeat(ws);
 
         //Received Messages
-        client.on('message', function (message) {
+        ws.on('message', function (message) {
             console.log('received: %s', message);
             const parsedMsg = JSON.parse(message);
             if(parsedMsg.type === 'userRegister'){
-                clients.saveClient(parsedMsg.username, client);
+                clients.saveClient(parsedMsg.username, ws);
             }
         });
 
@@ -110,14 +110,15 @@ function initWebsocket(){
 function initServer() {
   //  server.get('/', (req, res) => res.send('connected to server!'));
     server.get('/', function (req, res) {
-        res.sendfile('./client/index.html');
+        res.sendfile('./ng-client/dist/ng-client/index.html');
     });
 
+    server.use(express.static('./ng-client/dist/ng-client/'));
     server.listen(2727, () => console.log('Example app listening on port 2727!'));
 
 }
 
-function startWebsocketHeartbeat() {
+function startWebsocketHeartbeat(ws) {
     setInterval(
         /*todo - this should be set up as an observer model, and the websocket heartbeat and the electron renderer
          should subscribe to the periodically emitted event.

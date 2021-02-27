@@ -8,6 +8,9 @@
     <h1>Wecome to the Server!</h1>
     <!-- All of the Node.js APIs are available in this renderer process. -->
     <p> Current Connection Count: <span id="connectionCountSpan"> 0 </span></p>
+    <p> Current increment Count: <span id="testIncSpan"> 0 </span></p>
+
+
 
     <script>
       // You can also require other files to run in this process
@@ -18,6 +21,13 @@
           document.getElementById('connectionCountSpan').innerText = message;
 
       })
+
+      require('electron').ipcRenderer.on('testInc', (event, message) => {
+          console.log("Current test inc count - " + message);
+          document.getElementById('testIncSpan').innerText = message;
+
+      })
+
     </script>
   </body>
 </html>

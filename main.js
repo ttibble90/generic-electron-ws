@@ -1,6 +1,9 @@
 // Modules to control application life and create native browser window
 const {app, BrowserWindow} = require('electron');
 const express = require('express');
+// const path = require('path')
+// const url = require('url');
+const { ipcRenderer } = require('electron');
 const server = express();
 const WebSocketServer = require('ws').Server;
 
@@ -8,10 +11,14 @@ const WebSocketServer = require('ws').Server;
 let wss;
 let connectionCount = 0;
 
+let testIncCounter = 0;
+
+
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
+let debugWindow;
 
 class Clients {
     constructor(){
@@ -32,11 +39,17 @@ function createWindow () {
   // Create the browser window.
   mainWindow = new BrowserWindow({width: 800, height: 600});
 
+
   // and load the index.html of the app.
-  mainWindow.loadFile('index.html');
+  mainWindow.loadFile('./ng-server/dist/ng-server/index.html');
+    // mainWindow.loadURL(url.format({
+    //     pathname: path.join(__dirname, './ng-server/dist/ng-server/index.html'),
+    //     protocol: 'file',
+    //     slashes: true
+    // }));
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools()
+   mainWindow.webContents.openDevTools();
 
   // Emitted when the window is closed.
   mainWindow.on('closed', function () {
@@ -83,9 +96,17 @@ function initWebsocket(){
         ws.on('message', function (message) {
             console.log('received: %s', message);
             const parsedMsg = JSON.parse(message);
-            if(parsedMsg.type === 'userRegister'){
+
+            ipcRenderer.send(message);
+
+            if (parsedMsg.type === 'userRegister') {
                 clients.saveClient(parsedMsg.username, ws);
             }
+            if (parsedMsg.type === 'testInc') {
+                testIncCounter++;
+                mainWindow.webContents.send('testInc', testIncCounter);
+            }
+
         });
 
 
@@ -114,7 +135,7 @@ function initServer() {
     });
 
     server.use(express.static('./ng-client/dist/ng-client/'));
-    server.listen(2727, () => console.log('Example app listening on port 2727!'));
+    server.listen(1275, () => console.log('Example app listening on port 1275!'));
 
 }
 
@@ -125,7 +146,10 @@ function startWebsocketHeartbeat(ws) {
           */
         () => {
             try {
-                ws.send('' + new Date());
+                if (connectionCount > 0){
+                    ws.send('' + new Date());
+                }
+
             }
             catch (e) {
                 console.log('unable to send message... here is the error:' );
